@@ -26,6 +26,8 @@ var ClaudeUsageButton = GObject.registerClass({
         this._settings = extensionObject.getSettings();
         this._soupSession = new Soup.Session();
         this._refreshTimeoutId = null;
+        this._backoffTimeoutId = null;
+        this._lastData = null;
 
         // Top bar layout
         this._panelBox = new St.BoxLayout({
@@ -95,9 +97,9 @@ var ClaudeUsageButton = GObject.registerClass({
         this._fetchUsage();
         this._initTimer();
 
-        // Refresh on menu open
+        // Refresh on menu open (skip if backing off from rate limit)
         this.menu.connect('open-state-changed', (_self, isOpen) => {
-            if (isOpen) this._fetchUsage();
+            if (isOpen && !this._backoffTimeoutId) this._fetchUsage();
         });
 
         // Listen for settings changes
@@ -210,6 +212,11 @@ var ClaudeUsageButton = GObject.registerClass({
                     let bytes = session.send_and_read_finish(result);
                     let status = message.status_code;
 
+                    if (status === 429) {
+                        this._handleRateLimit(message);
+                        return;
+                    }
+
                     if (status !== 200) {
                         this._setError(`HTTP ${status}`);
                         return;
@@ -218,6 +225,7 @@ var ClaudeUsageButton = GObject.registerClass({
                     let decoder = new TextDecoder();
                     let text = decoder.decode(bytes.get_data());
                     let data = JSON.parse(text);
+                    this._lastData = data;
                     this._updateDisplay(data);
                 } catch (e) {
                     this._setError('Error');
@@ -225,6 +233,41 @@ var ClaudeUsageButton = GObject.registerClass({
                 }
             }
         );
+    }
+
+    _handleRateLimit(message) {
+        // Parse Retry-After header (seconds), default to 60s
+        let retryAfter = 60;
+        let retryHeader = message.response_headers.get_one('Retry-After');
+        if (retryHeader) {
+            let parsed = parseInt(retryHeader, 10);
+            if (!isNaN(parsed) && parsed > 0)
+                retryAfter = Math.min(parsed, 600);
+        }
+
+        // Pause the regular timer and schedule a one-shot retry
+        this._destroyTimer();
+        if (this._backoffTimeoutId) {
+            GLib.source_remove(this._backoffTimeoutId);
+            this._backoffTimeoutId = null;
+        }
+        this._backoffTimeoutId = GLib.timeout_add_seconds(
+            GLib.PRIORITY_DEFAULT,
+            retryAfter,
+            () => {
+                this._backoffTimeoutId = null;
+                this._fetchUsage();
+                this._initTimer();
+                return GLib.SOURCE_REMOVE;
+            }
+        );
+
+        // Show cached data if available, otherwise show error
+        if (this._lastData) {
+            this._updateDisplay(this._lastData);
+        } else {
+            this._setError('Rate limited');
+        }
     }
 
     _updateDisplay(data) {
@@ -311,6 +354,11 @@ var ClaudeUsageButton = GObject.registerClass({
 
     destroy() {
         this._destroyTimer();
+
+        if (this._backoffTimeoutId) {
+            GLib.source_remove(this._backoffTimeoutId);
+            this._backoffTimeoutId = null;
+        }
 
         if (this._settingsChangedId) {
             this._settings.disconnect(this._settingsChangedId);
