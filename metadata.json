@@ -4,6 +4,6 @@
   "uuid": "claude-usage@stefanfluit.com",
   "settings-schema": "org.gnome.shell.extensions.claude-usage",
   "shell-version": ["45", "46", "47", "48", "49"],
-  "url": "https://github.com/stefanfluit/gnome-shell-extension-claude-usage",
+  "url": "https://github.com/stfnRO/gnome-shell-extension-claude-usage",
   "version": 1
 }
