@@ -20,7 +20,7 @@ var ClaudeUsageButton = GObject.registerClass({
     GTypeName: 'ClaudeUsageButton',
 }, class ClaudeUsageButton extends PanelMenu.Button {
     _init(extensionObject) {
-        super._init(0.0, 'Claude Usage');
+        super._init(0.5, 'Claude Usage');
 
         this._extensionObject = extensionObject;
         this._settings = extensionObject.getSettings();
@@ -34,10 +34,14 @@ var ClaudeUsageButton = GObject.registerClass({
             y_align: Clutter.ActorAlign.CENTER,
         });
 
-        // Icon
+        // Icon (Claude logo)
+        let iconFile = Gio.File.new_for_path(
+            GLib.build_filenamev([extensionObject.path, 'icons', 'claude-symbolic.svg'])
+        );
         this._icon = new St.Icon({
-            icon_name: 'weather-overcast-symbolic',
-            style_class: 'system-status-icon claude-usage-icon',
+            gicon: new Gio.FileIcon({ file: iconFile }),
+            style_class: 'system-status-icon',
+            icon_size: 16,
         });
         this._panelBox.add_child(this._icon);
 
@@ -204,9 +208,9 @@ var ClaudeUsageButton = GObject.registerClass({
             (session, result) => {
                 try {
                     let bytes = session.send_and_read_finish(result);
-                    let status = message.get_status();
+                    let status = message.status_code;
 
-                    if (status !== Soup.Status.OK) {
+                    if (status !== 200) {
                         this._setError(`HTTP ${status}`);
                         return;
                     }
@@ -268,18 +272,21 @@ var ClaudeUsageButton = GObject.registerClass({
     }
 
     _updateColors(fiveHourPct, sevenDayPct) {
-        let maxPct = Math.max(fiveHourPct, sevenDayPct);
+        this._colorLabel(this._fiveHourLabel, fiveHourPct);
+        this._colorLabel(this._sevenDayLabel, sevenDayPct);
+    }
 
-        this._panelBox.remove_style_class_name('claude-usage-warning');
-        this._panelBox.remove_style_class_name('claude-usage-critical');
-        this._panelBox.remove_style_class_name('claude-usage-ok');
+    _colorLabel(label, pct) {
+        label.remove_style_class_name('claude-usage-label-warning');
+        label.remove_style_class_name('claude-usage-label-high');
+        label.remove_style_class_name('claude-usage-label-critical');
 
-        if (maxPct >= 80)
-            this._panelBox.add_style_class_name('claude-usage-critical');
-        else if (maxPct >= 50)
-            this._panelBox.add_style_class_name('claude-usage-warning');
-        else
-            this._panelBox.add_style_class_name('claude-usage-ok');
+        if (pct >= 90)
+            label.add_style_class_name('claude-usage-label-critical');
+        else if (pct >= 80)
+            label.add_style_class_name('claude-usage-label-high');
+        else if (pct >= 60)
+            label.add_style_class_name('claude-usage-label-warning');
     }
 
     _formatDuration(ms) {
@@ -298,9 +305,8 @@ var ClaudeUsageButton = GObject.registerClass({
         this._sevenDayLabel.set_text('--');
         this._resetLabel.set_text(msg);
 
-        this._panelBox.remove_style_class_name('claude-usage-ok');
-        this._panelBox.remove_style_class_name('claude-usage-warning');
-        this._panelBox.remove_style_class_name('claude-usage-critical');
+        this._colorLabel(this._fiveHourLabel, 0);
+        this._colorLabel(this._sevenDayLabel, 0);
     }
 
     destroy() {
@@ -322,21 +328,36 @@ var ClaudeUsageButton = GObject.registerClass({
 
 export default class ClaudeUsageExtension extends Extension {
     enable() {
+        this._settings = this.getSettings();
+        this._addButton();
+
+        this._positionChangedId = this._settings.connect('changed::position-in-panel', () => {
+            this._removeButton();
+            this._addButton();
+        });
+    }
+
+    _addButton() {
         claudeMenu = new ClaudeUsageButton(this);
-
-        let settings = this.getSettings();
-        let position = settings.get_string('position-in-panel');
-
+        let position = this._settings.get_string('position-in-panel');
         let pos = position === 'left' ? -1 : (position === 'center' ? -1 : 0);
         let box = position === 'left' ? 'left' : (position === 'center' ? 'center' : 'right');
-
         Main.panel.addToStatusArea('claude-usage', claudeMenu, pos, box);
     }
 
-    disable() {
+    _removeButton() {
         if (claudeMenu) {
             claudeMenu.destroy();
             claudeMenu = null;
         }
+    }
+
+    disable() {
+        if (this._positionChangedId) {
+            this._settings.disconnect(this._positionChangedId);
+            this._positionChangedId = null;
+        }
+        this._removeButton();
+        this._settings = null;
     }
 }

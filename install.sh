@@ -2,7 +2,7 @@
 # Install the Claude Usage GNOME Shell extension
 set -e
 
-EXT_UUID="claude-usage@stefanfluit.com"
+EXT_UUID="claude-usage@tasta.space"
 EXT_DIR="$HOME/.local/share/gnome-shell/extensions/$EXT_UUID"
 
 echo "Installing Claude Usage extension..."
@@ -15,7 +15,7 @@ rm -rf "$EXT_DIR"
 
 # Copy extension files
 mkdir -p "$EXT_DIR"
-cp -r "$(dirname "$0")"/{metadata.json,extension.js,prefs.js,stylesheet.css,schemas} "$EXT_DIR/"
+cp -r "$(dirname "$0")"/{metadata.json,extension.js,prefs.js,stylesheet.css,schemas,icons} "$EXT_DIR/"
 
 echo "Installed to $EXT_DIR"
 echo ""

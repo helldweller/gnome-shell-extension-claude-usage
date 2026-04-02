@@ -72,7 +72,7 @@ export default class ClaudeUsagePreferences extends ExtensionPreferences {
             title: 'Refresh interval',
             subtitle: 'How often to fetch usage data (in seconds)',
             adjustment: new Gtk.Adjustment({
-                lower: 30,
+                lower: 60,
                 upper: 600,
                 step_increment: 30,
                 value: settings.get_int('refresh-interval'),
@@ -89,7 +89,7 @@ export default class ClaudeUsagePreferences extends ExtensionPreferences {
 
         let positionRow = new Adw.ComboRow({
             title: 'Position in panel',
-            subtitle: 'Where to show the indicator (requires restart)',
+            subtitle: 'Where to show the indicator',
             model: positionModel,
         });
 

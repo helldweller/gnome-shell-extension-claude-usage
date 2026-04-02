@@ -1,7 +1,7 @@
 {
   "name": "Claude Usage",
   "description": "Monitor your Claude AI usage limits in the GNOME top bar. Shows 5-hour and 7-day usage percentages and time until quota resets.",
-  "uuid": "claude-usage@stefanfluit.com",
+  "uuid": "claude-usage@tasta.space",
   "settings-schema": "org.gnome.shell.extensions.claude-usage",
   "shell-version": ["45", "46", "47", "48", "49"],
   "url": "https://github.com/stfnRO/gnome-shell-extension-claude-usage",

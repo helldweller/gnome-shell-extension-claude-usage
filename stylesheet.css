@@ -22,15 +22,19 @@
     color: rgba(255, 255, 255, 0.7);
 }
 
-/* Color states */
-.claude-usage-ok .claude-usage-label {
+/* Per-label color states based on individual percentage */
+.claude-usage-label {
     color: rgba(255, 255, 255, 0.9);
 }
 
-.claude-usage-warning .claude-usage-label {
+.claude-usage-label-warning {
     color: #f5c542;
 }
 
-.claude-usage-critical .claude-usage-label {
+.claude-usage-label-high {
+    color: #e89030;
+}
+
+.claude-usage-label-critical {
     color: #e05050;
 }
