@@ -3,7 +3,7 @@ import Gio from 'gi://Gio';
 import GLib from 'gi://GLib';
 import Gtk from 'gi://Gtk';
 
-import { ExtensionPreferences } from 'resource:///org/gnome/Shell/Extensions/js/extensions/prefs.js';
+import { ExtensionPreferences } from 'resource:///org/gnome/shell/extensions/prefs.js';
 
 export default class ClaudeUsagePreferences extends ExtensionPreferences {
     fillPreferencesWindow(window) {
