@@ -1,0 +1,24 @@
+# AI/LLM files
+.claude/
+.claude*
+CLAUDE.md
+CLAUDE.local.md
+.cursorrules
+.cursor/
+.aider*
+.copilot/
+.github/copilot*
+
+# Compiled schemas (generated)
+schemas/gschemas.compiled
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Editor files
+*.swp
+*.swo
+*~
+.vscode/
+.idea/

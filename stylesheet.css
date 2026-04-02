@@ -1,0 +1,36 @@
+.claude-usage-panel {
+    spacing: 6px;
+}
+
+.claude-usage-icon {
+    icon-size: 16px;
+    padding-right: 2px;
+}
+
+.claude-usage-label {
+    font-weight: bold;
+    font-size: 11px;
+}
+
+.claude-usage-separator {
+    font-size: 11px;
+    padding: 0 2px;
+    color: rgba(255, 255, 255, 0.5);
+}
+
+.claude-usage-reset {
+    color: rgba(255, 255, 255, 0.7);
+}
+
+/* Color states */
+.claude-usage-ok .claude-usage-label {
+    color: rgba(255, 255, 255, 0.9);
+}
+
+.claude-usage-warning .claude-usage-label {
+    color: #f5c542;
+}
+
+.claude-usage-critical .claude-usage-label {
+    color: #e05050;
+}

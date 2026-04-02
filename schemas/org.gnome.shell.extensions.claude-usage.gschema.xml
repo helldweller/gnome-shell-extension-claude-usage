@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<schemalist>
+  <schema id="org.gnome.shell.extensions.claude-usage"
+          path="/org/gnome/shell/extensions/claude-usage/">
+
+    <key name="session-key" type="s">
+      <default>''</default>
+      <summary>Claude OAuth token</summary>
+      <description>OAuth token for fetching usage data. Auto-detected from ~/.claude/.credentials.json if empty.</description>
+    </key>
+
+    <key name="refresh-interval" type="i">
+      <default>180</default>
+      <summary>Refresh interval in seconds</summary>
+      <description>How often to fetch updated usage data from claude.ai</description>
+    </key>
+
+    <key name="position-in-panel" type="s">
+      <default>'right'</default>
+      <summary>Position in panel</summary>
+      <description>Where to place the indicator: left, center, or right</description>
+    </key>
+
+  </schema>
+</schemalist>
