@@ -47,46 +47,25 @@ var ClaudeUsageButton = GObject.registerClass({
         });
         this._panelBox.add_child(this._icon);
 
-        // Labels for each metric
-        this._fiveHourLabel = new St.Label({
-            style_class: 'claude-usage-label',
-            text: '…',
-            y_align: Clutter.ActorAlign.CENTER,
-            y_expand: true,
-        });
-        this._panelBox.add_child(this._fiveHourLabel);
+        // One block per metric: colored percentage + dim reset countdown
+        this._fiveHour = this._createMetric();
+        this._panelBox.add_child(this._fiveHour.box);
 
-        this._separatorLabel1 = new St.Label({
-            style_class: 'claude-usage-separator',
-            text: '·',
-            y_align: Clutter.ActorAlign.CENTER,
-            y_expand: true,
-        });
-        this._panelBox.add_child(this._separatorLabel1);
+        this._separator1 = this._createSeparator();
+        this._panelBox.add_child(this._separator1);
 
-        this._sevenDayLabel = new St.Label({
-            style_class: 'claude-usage-label',
-            text: '…',
-            y_align: Clutter.ActorAlign.CENTER,
-            y_expand: true,
-        });
-        this._panelBox.add_child(this._sevenDayLabel);
+        this._sevenDay = this._createMetric();
+        this._panelBox.add_child(this._sevenDay.box);
 
-        this._separatorLabel2 = new St.Label({
-            style_class: 'claude-usage-separator',
-            text: '·',
-            y_align: Clutter.ActorAlign.CENTER,
-            y_expand: true,
-        });
-        this._panelBox.add_child(this._separatorLabel2);
+        // Separator + scoped-model block are shown only when the API returns
+        // a per-model (weekly_scoped) limit, e.g. Fable / Opus / Sonnet.
+        this._separator2 = this._createSeparator();
+        this._panelBox.add_child(this._separator2);
 
-        this._resetLabel = new St.Label({
-            style_class: 'claude-usage-label claude-usage-reset',
-            text: '…',
-            y_align: Clutter.ActorAlign.CENTER,
-            y_expand: true,
-        });
-        this._panelBox.add_child(this._resetLabel);
+        this._scoped = this._createMetric();
+        this._panelBox.add_child(this._scoped.box);
+        this._separator2.hide();
+        this._scoped.box.hide();
 
         this.add_child(this._panelBox);
 
@@ -109,8 +88,40 @@ var ClaudeUsageButton = GObject.registerClass({
         });
     }
 
+    _createMetric() {
+        let box = new St.BoxLayout({
+            style_class: 'claude-usage-metric',
+            y_align: Clutter.ActorAlign.CENTER,
+            y_expand: true,
+        });
+        let value = new St.Label({
+            style_class: 'claude-usage-label',
+            text: '…',
+            y_align: Clutter.ActorAlign.CENTER,
+            y_expand: true,
+        });
+        let reset = new St.Label({
+            style_class: 'claude-usage-label claude-usage-reset',
+            text: '',
+            y_align: Clutter.ActorAlign.CENTER,
+            y_expand: true,
+        });
+        box.add_child(value);
+        box.add_child(reset);
+        return { box, value, reset };
+    }
+
+    _createSeparator() {
+        return new St.Label({
+            style_class: 'claude-usage-separator',
+            text: '·',
+            y_align: Clutter.ActorAlign.CENTER,
+            y_expand: true,
+        });
+    }
+
     _buildMenu() {
-        // Detail items in the dropdown
+        // Usage percentages
         this._menuFiveHour = new PopupMenu.PopupMenuItem('5h window: …');
         this._menuFiveHour.setSensitive(false);
         this.menu.addMenuItem(this._menuFiveHour);
@@ -119,14 +130,26 @@ var ClaudeUsageButton = GObject.registerClass({
         this._menuSevenDay.setSensitive(false);
         this.menu.addMenuItem(this._menuSevenDay);
 
-        this._menuSonnet = new PopupMenu.PopupMenuItem('');
-        this._menuSonnet.setSensitive(false);
-        this._menuSonnet.actor.hide();
-        this.menu.addMenuItem(this._menuSonnet);
+        this._menuScoped = new PopupMenu.PopupMenuItem('');
+        this._menuScoped.setSensitive(false);
+        this._menuScoped.actor.hide();
+        this.menu.addMenuItem(this._menuScoped);
 
-        this._menuReset = new PopupMenu.PopupMenuItem('Resets: …');
-        this._menuReset.setSensitive(false);
-        this.menu.addMenuItem(this._menuReset);
+        this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
+
+        // Reset times (countdown + exact clock time)
+        this._menuFiveHourReset = new PopupMenu.PopupMenuItem('5h resets: …');
+        this._menuFiveHourReset.setSensitive(false);
+        this.menu.addMenuItem(this._menuFiveHourReset);
+
+        this._menuSevenDayReset = new PopupMenu.PopupMenuItem('7d resets: …');
+        this._menuSevenDayReset.setSensitive(false);
+        this.menu.addMenuItem(this._menuSevenDayReset);
+
+        this._menuScopedReset = new PopupMenu.PopupMenuItem('');
+        this._menuScopedReset.setSensitive(false);
+        this._menuScopedReset.actor.hide();
+        this.menu.addMenuItem(this._menuScopedReset);
 
         this.menu.addMenuItem(new PopupMenu.PopupSeparatorMenuItem());
 
@@ -273,50 +296,82 @@ var ClaudeUsageButton = GObject.registerClass({
     _updateDisplay(data) {
         let fiveHour = data.five_hour;
         let sevenDay = data.seven_day;
-        let sonnet = data.seven_day_sonnet;
+        let scoped = this._findScopedLimit(data);
 
-        // Top bar labels
         let fh = fiveHour ? Math.round(fiveHour.utilization) : 0;
         let sd = sevenDay ? Math.round(sevenDay.utilization) : 0;
 
-        this._fiveHourLabel.set_text(`5h ${fh}%`);
-        this._sevenDayLabel.set_text(`7d ${sd}%`);
+        // Panel blocks: 5h and 7d each with their own reset countdown
+        this._setMetric(this._fiveHour, '5h', fh, fiveHour?.resets_at);
+        this._setMetric(this._sevenDay, '7d', sd, sevenDay?.resets_at);
 
-        // Time remaining until 5h window resets
-        if (fiveHour?.resets_at) {
-            let resetTime = new Date(fiveHour.resets_at).getTime();
-            let now = Date.now();
-            let remaining = Math.max(0, resetTime - now);
-            this._resetLabel.set_text(`↻ ${this._formatDuration(remaining)}`);
+        let scopedName = null;
+        if (scoped) {
+            scopedName = scoped.scope?.model?.display_name || 'Model';
+            this._setMetric(this._scoped, scopedName, Math.round(scoped.percent), scoped.resets_at);
+            this._scoped.box.show();
+            this._separator2.show();
         } else {
-            this._resetLabel.set_text('↻ --');
+            this._scoped.box.hide();
+            this._separator2.hide();
         }
 
-        // Color coding based on usage
-        this._updateColors(fh, sd);
-
-        // Dropdown menu details
+        // Dropdown: usage percentages
         this._menuFiveHour.label.set_text(`5h window: ${fh}% used`);
         this._menuSevenDay.label.set_text(`7d window: ${sd}% used`);
 
-        if (sonnet?.utilization != null) {
-            this._menuSonnet.label.set_text(`Sonnet 7d: ${Math.round(sonnet.utilization)}% used`);
-            this._menuSonnet.actor.show();
+        if (scoped) {
+            this._menuScoped.label.set_text(`${scopedName} 7d: ${Math.round(scoped.percent)}% used`);
+            this._menuScoped.actor.show();
         } else {
-            this._menuSonnet.actor.hide();
+            this._menuScoped.actor.hide();
         }
 
-        if (fiveHour?.resets_at) {
-            let resetDate = new Date(fiveHour.resets_at);
-            let hours = resetDate.getHours().toString().padStart(2, '0');
-            let minutes = resetDate.getMinutes().toString().padStart(2, '0');
-            this._menuReset.label.set_text(`5h resets at ${hours}:${minutes}`);
+        // Dropdown: reset times (countdown + exact clock time)
+        this._menuFiveHourReset.label.set_text(this._formatResetLine('5h', fiveHour?.resets_at));
+        this._menuSevenDayReset.label.set_text(this._formatResetLine('7d', sevenDay?.resets_at));
+
+        if (scoped) {
+            this._menuScopedReset.label.set_text(this._formatResetLine(scopedName, scoped.resets_at));
+            this._menuScopedReset.actor.show();
+        } else {
+            this._menuScopedReset.actor.hide();
         }
     }
 
-    _updateColors(fiveHourPct, sevenDayPct) {
-        this._colorLabel(this._fiveHourLabel, fiveHourPct);
-        this._colorLabel(this._sevenDayLabel, sevenDayPct);
+    _findScopedLimit(data) {
+        let limits = Array.isArray(data.limits) ? data.limits : [];
+        let scoped = limits.filter(
+            l => l && l.kind === 'weekly_scoped' && l.resets_at != null
+        );
+        if (scoped.length === 0)
+            return null;
+        // If several per-model limits exist, surface the most critical one.
+        return scoped.reduce((a, b) => (b.percent > a.percent ? b : a));
+    }
+
+    _setMetric(metric, prefix, pct, resetsAt) {
+        metric.value.set_text(`${prefix} ${pct}%`);
+        this._colorLabel(metric.value, pct);
+
+        if (resetsAt) {
+            let remaining = Math.max(0, new Date(resetsAt).getTime() - Date.now());
+            metric.reset.set_text(`↻${this._formatDurationCompact(remaining)}`);
+            metric.reset.show();
+        } else {
+            metric.reset.set_text('');
+            metric.reset.hide();
+        }
+    }
+
+    _formatResetLine(prefix, resetsAt) {
+        if (!resetsAt)
+            return `${prefix} resets: --`;
+        let date = new Date(resetsAt);
+        let remaining = Math.max(0, date.getTime() - Date.now());
+        let hours = date.getHours().toString().padStart(2, '0');
+        let minutes = date.getMinutes().toString().padStart(2, '0');
+        return `${prefix} resets in ${this._formatDuration(remaining)} (${hours}:${minutes})`;
     }
 
     _colorLabel(label, pct) {
@@ -343,13 +398,32 @@ var ClaudeUsageButton = GObject.registerClass({
             return `${minutes}m`;
     }
 
-    _setError(msg) {
-        this._fiveHourLabel.set_text('--');
-        this._sevenDayLabel.set_text('--');
-        this._resetLabel.set_text(msg);
+    _formatDurationCompact(ms) {
+        let totalSeconds = Math.floor(ms / 1000);
+        let hours = Math.floor(totalSeconds / 3600);
+        let minutes = Math.floor((totalSeconds % 3600) / 60);
 
-        this._colorLabel(this._fiveHourLabel, 0);
-        this._colorLabel(this._sevenDayLabel, 0);
+        if (hours > 0 && minutes > 0)
+            return `${hours}h${minutes}m`;
+        else if (hours > 0)
+            return `${hours}h`;
+        else
+            return `${minutes}m`;
+    }
+
+    _setError(msg) {
+        this._fiveHour.value.set_text('5h --');
+        this._sevenDay.value.set_text('7d --');
+        this._colorLabel(this._fiveHour.value, 0);
+        this._colorLabel(this._sevenDay.value, 0);
+
+        this._fiveHour.reset.set_text(msg);
+        this._fiveHour.reset.show();
+        this._sevenDay.reset.set_text('');
+        this._sevenDay.reset.hide();
+
+        this._scoped.box.hide();
+        this._separator2.hide();
     }
 
     destroy() {

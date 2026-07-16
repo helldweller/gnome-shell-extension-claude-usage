@@ -2,6 +2,10 @@
     spacing: 6px;
 }
 
+.claude-usage-metric {
+    spacing: 3px;
+}
+
 .claude-usage-icon {
     icon-size: 16px;
     padding-right: 2px;
